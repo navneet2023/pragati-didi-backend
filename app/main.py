@@ -14,6 +14,7 @@ settings = get_settings()
 
 app = FastAPI(title=settings.app_name)
 
+# ✅ static serving
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(learner_router)
@@ -31,7 +32,6 @@ def home():
         "message": "PragatiDidi FastAPI is running",
         "docs": "/docs",
         "health": "/health",
-        "chat_ui": "/chat-ui",
     }
 
 

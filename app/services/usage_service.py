@@ -2,7 +2,6 @@ import os
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime, timezone, timedelta
 
-import boto3
 import psycopg2
 import psycopg2.extras
 
@@ -10,46 +9,35 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# ---- IST timezone setup ----
+# ---- IST timezone ----
 try:
     from zoneinfo import ZoneInfo
     IST_TZ = ZoneInfo("Asia/Kolkata")
 except Exception:
     IST_TZ = timezone(timedelta(hours=5, minutes=30))
 
-# ===================== Config =====================
-REGION = settings.aws_region
+# ===================== CONFIG =====================
 
 USAGE_TABLE_NAME = os.getenv("USAGE_TABLE_NAME", "_2025_learner_usages_status")
 
-IMAGE_BUCKET = os.getenv("IMAGE_BUCKET", settings.bucket_name)
-FIRST_TIME_IMAGE_KEY = os.getenv("FIRST_TIME_IMAGE_KEY", "image/wel_1.jpeg")
-RETURNING_IMAGE_KEY = os.getenv("RETURNING_IMAGE_KEY", "image/wel_2.jpeg")
-VIDEO_KEY = os.getenv("VIDEO_KEY", "image/intro_video.MP4")
+BASE_URL = settings.base_url
 
-PRESIGN_EXPIRES_SECONDS = int(os.getenv("PRESIGN_EXPIRES", "604800"))
-
-IMAGE_BOX_WIDTH = int(os.getenv("IMAGE_BOX_WIDTH", "100"))
-IMAGE_BOX_HEIGHT = int(os.getenv("IMAGE_BOX_HEIGHT", "150"))
+IMAGE_BOX_WIDTH = 100
+IMAGE_BOX_HEIGHT = 150
 
 USAGE_TS_FMT = "%d-%m-%Y %H:%M:%S"
 
 FIRST_TIME_MSG = (
     "नमस्ते {first_name}!👋\n"
     "मैं हूँ प्रगति दीदी – आपकी पढ़ाई और सपनों की साथी 💫\n\n"
-    "यहाँ आप सुन सकते हैं कहानियाँ, सीख सकते हैं नए शब्द और खुद को 10वीं के लिए तैयार कर सकते हैं!\n\n"
 )
 
 RETURNING_MSG = (
     "Hi {first_name}! 😄 फिर मिल गए हम!\n"
-    "पिछली बार आपने {last_subject} का {last_chapter} ध्यान से पढ़ा था।👏\n"
-    "आज सिर्फ़ 15 मिनट निकालें — कुछ नया और मज़ेदार सीखते हैं? ✨"
+    "पिछली बार आपने {last_subject} का {last_chapter} पढ़ा था 👏\n"
 )
 
-# keep boto3 only for S3
-session = boto3.Session(region_name=REGION)
-s3 = session.client("s3")
-
+# ===================== DB =====================
 
 def get_db_connection():
     return psycopg2.connect(
@@ -60,78 +48,31 @@ def get_db_connection():
         dbname=settings.pg_database
     )
 
+# ===================== HELPERS =====================
 
 def extract_first_name(full_name: str) -> str:
     if not full_name:
         return ""
-    parts = str(full_name).strip().split()
-    return parts[0] if parts else ""
+    return full_name.strip().split()[0]
 
 
-def coalesce_input(data: Dict[str, Any]) -> Dict[str, Any]:
-    return data or {}
+def get_static_url(path: str) -> str:
+    return f"{BASE_URL}/static/{path}"
 
 
 def parse_usage_ts(ts_val: str) -> Optional[datetime]:
     if not ts_val:
         return None
 
-    for fmt in (USAGE_TS_FMT, "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
-        try:
-            return datetime.strptime(ts_val, fmt)
-        except Exception:
-            continue
-
-    s = str(ts_val)
     try:
-        if s.isdigit():
-            if len(s) > 11:
-                return datetime.fromtimestamp(int(s) / 1000.0)
-            return datetime.fromtimestamp(int(s))
-    except Exception:
-        pass
+        return datetime.strptime(ts_val, USAGE_TS_FMT)
+    except:
+        return None
 
-    return None
+# ===================== LOG =====================
 
-
-def presign_s3_url(bucket: str, key: str) -> str:
-    return s3.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": bucket, "Key": key},
-        ExpiresIn=PRESIGN_EXPIRES_SECONDS,
-    )
-
-
-def safe_format(
-    template: str,
-    *,
-    learner_name: Optional[str],
-    first_name: Optional[str],
-    last_subject: Optional[str],
-    last_chapter: Optional[str],
-) -> str:
-    safe_full_name = (learner_name or "").strip() or "मित्र"
-    safe_first_name = (first_name or "").strip() or "मित्र"
-    safe_subject = (last_subject or "").strip() or "पिछला विषय"
-    safe_chapter = (last_chapter or "").strip() or "पिछला अध्याय"
-
-    text = template
-    text = text.replace("{first_name}", safe_first_name)
-    text = text.replace("{learner_name}", safe_full_name).replace("@learner_name", safe_full_name)
-    text = text.replace("{last_subject}", safe_subject)
-    text = text.replace("{last_chapter}", safe_chapter)
-    return text
-
-
-def log_usage(learner_id: str, camp_id: str, mobile: str) -> None:
+def log_usage(learner_id: str, camp_id: str, mobile: str):
     try:
-        if not learner_id or not camp_id:
-            print("Usage log skipped: learner_id or camp_id missing")
-            return
-
-        ts = datetime.now(IST_TZ)
-        timestamp_str = ts.strftime("%Y-%m-%d %H:%M:%S")
-
         query = f"""
             INSERT INTO "{USAGE_TABLE_NAME}"
             (timestamps, learner_id, camp_id, mobile, type)
@@ -139,11 +80,11 @@ def log_usage(learner_id: str, camp_id: str, mobile: str) -> None:
         """
 
         values = (
-            timestamp_str,
-            str(learner_id),
-            str(camp_id),
+            datetime.now(IST_TZ).strftime("%Y-%m-%d %H:%M:%S"),
+            learner_id,
+            camp_id,
             mobile or "",
-            "Prayaas Live Session Started",
+            "session_start",
         )
 
         with get_db_connection() as conn:
@@ -151,16 +92,15 @@ def log_usage(learner_id: str, camp_id: str, mobile: str) -> None:
                 cur.execute(query, values)
             conn.commit()
 
-        print(f"✅ Usage logged: {learner_id} | {camp_id}")
-
     except Exception as e:
-        print(f"Usage log error: {e}")
+        print("log_usage error:", e)
 
+# ===================== VISITS =====================
 
-def get_visits_last_subject_chapter(learner_id: str) -> Tuple[int, Optional[str], Optional[str]]:
+def get_visits_last_subject_chapter(learner_id: str):
     try:
         query = f"""
-            SELECT learner_id, timestamps, chapter, subject
+            SELECT timestamps, chapter, subject
             FROM "{USAGE_TABLE_NAME}"
             WHERE learner_id = %s
         """
@@ -172,24 +112,22 @@ def get_visits_last_subject_chapter(learner_id: str) -> Tuple[int, Optional[str]
 
         visits = len(items)
 
-        def sort_key(x: Dict[str, Any]):
-            parsed = parse_usage_ts(x.get("timestamps", ""))
-            return parsed or datetime.min
-
-        items.sort(key=sort_key, reverse=True)
+        items.sort(
+            key=lambda x: parse_usage_ts(x.get("timestamps")) or datetime.min,
+            reverse=True
+        )
 
         for item in items:
-            chapter = (item.get("chapter") or "").strip()
-            subject = (item.get("subject") or "").strip()
-            if chapter:
-                return visits, subject, chapter
+            if item.get("chapter"):
+                return visits, item.get("subject"), item.get("chapter")
 
         return visits, None, None
 
     except Exception as e:
-        print(f"get_visits_last_subject_chapter error: {e}")
+        print("visit error:", e)
         return 0, None, None
 
+# ===================== MAIN =====================
 
 def build_welcome_payload(
     learner_id: str,
@@ -197,45 +135,33 @@ def build_welcome_payload(
     mobile: str,
     learner_name: Optional[str],
 ) -> Dict[str, Any]:
-    learner_id = (learner_id or "").strip()
-    camp_id = (camp_id or "").strip()
-    mobile = (mobile or "").strip()
-    learner_name = (learner_name or "").strip() or None
 
     first_name = extract_first_name(learner_name or "")
+
     visits, last_subject, last_chapter = get_visits_last_subject_chapter(learner_id)
 
-    log_usage(learner_id=learner_id, camp_id=camp_id, mobile=mobile)
+    log_usage(learner_id, camp_id, mobile)
 
     is_first_time = visits == 0
-    raw_template = FIRST_TIME_MSG if is_first_time else RETURNING_MSG
 
-    image_key = FIRST_TIME_IMAGE_KEY if is_first_time else RETURNING_IMAGE_KEY
-    image_url = presign_s3_url(IMAGE_BUCKET, image_key)
-    video_url = presign_s3_url(IMAGE_BUCKET, VIDEO_KEY)
+    message = (
+        FIRST_TIME_MSG if is_first_time else RETURNING_MSG
+    ).replace("{first_name}", first_name or "मित्र") \
+     .replace("{last_subject}", last_subject or "") \
+     .replace("{last_chapter}", last_chapter or "")
 
-    message = safe_format(
-        raw_template,
-        learner_name=learner_name,
-        first_name=first_name,
-        last_subject=last_subject,
-        last_chapter=last_chapter,
-    )
+    # ✅ STATIC FILES
+    image_path = "media/wel_1.jpeg" if is_first_time else "media/wel_2.jpeg"
+    video_path = "media/intro_video.mp4"
 
     return {
         "learner_id": learner_id,
         "visits": visits,
-        "last_subject": last_subject or "",
-        "last_chapter": last_chapter or "",
         "message": message,
-        "image_bucket": IMAGE_BUCKET,
-        "image_key": image_key,
-        "image_url": image_url,
-        "video_url": video_url,
-        "video_link": "https://youtube.com/shorts/_n5iGuWrPCw",
+        "image_url": get_static_url(image_path),
+        "video_url": get_static_url(video_path),
         "image_box": {
             "width": IMAGE_BOX_WIDTH,
-            "height": IMAGE_BOX_HEIGHT,
-            "fit": "contain",
-        },
+            "height": IMAGE_BOX_HEIGHT
+        }
     }
