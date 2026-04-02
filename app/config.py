@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -8,16 +9,17 @@ class Settings(BaseSettings):
     learner_table: str = "learner_details"
     bucket_name: str = "pragatididi-2025"
 
-    # ✅ Let pydantic read env variables automatically
-    pg_host: str
-    pg_port: int = 5432
-    pg_user: str
-    pg_password: str
-    pg_database: str
+    # ✅ Map Railway env variables correctly
+    pg_host: str = Field(alias="POSTGRES_HOST")
+    pg_port: int = Field(default=5432, alias="POSTGRES_PORT")
+    pg_user: str = Field(alias="POSTGRES_USER")
+    pg_password: str = Field(alias="POSTGRES_PASSWORD")
+    pg_database: str = Field(alias="POSTGRES_DATABASE")  # 👈 IMPORTANT FIX
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        extra="ignore",
+        populate_by_name=True
     )
 
 
