@@ -20,8 +20,6 @@ except Exception:
 
 USAGE_TABLE_NAME = os.getenv("USAGE_TABLE_NAME", "_2025_learner_usages_status")
 
-BASE_URL = settings.base_url
-
 IMAGE_BOX_WIDTH = 100
 IMAGE_BOX_HEIGHT = 150
 
@@ -56,8 +54,9 @@ def extract_first_name(full_name: str) -> str:
     return full_name.strip().split()[0]
 
 
+# ✅ NO BASE_URL → direct relative path
 def get_static_url(path: str) -> str:
-    return f"{BASE_URL}/static/{path}"
+    return f"/static/{path}"
 
 
 def parse_usage_ts(ts_val: str) -> Optional[datetime]:
@@ -150,7 +149,7 @@ def build_welcome_payload(
      .replace("{last_subject}", last_subject or "") \
      .replace("{last_chapter}", last_chapter or "")
 
-    # ✅ STATIC FILES
+    # ✅ STATIC FILES (no base_url)
     image_path = "media/wel_1.jpeg" if is_first_time else "media/wel_2.jpeg"
     video_path = "media/intro_video.mp4"
 
