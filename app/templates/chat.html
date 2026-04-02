@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="chat-wrapper">
+            <div class="chat-header">
+                <h1>PragatiDidi Web Chat</h1>
+                <p>Internal testing and learner web experience</p>
+            </div>
+
+            <div class="learner-panel">
+                <label for="learner_id">Learner ID</label>
+                <input type="text" id="learner_id" placeholder="Enter learner ID">
+
+                <label for="camp_id">Camp ID</label>
+                <input type="text" id="camp_id" placeholder="Enter camp ID">
+
+                <label for="mobile">Mobile</label>
+                <input type="text" id="mobile" placeholder="Enter mobile number">
+
+                <button type="button" id="verifyBtn">Verify Learner</button>
+                <div id="verifyResult" class="verify-result"></div>
+            </div>
+
+            <div id="welcomeMedia" class="welcome-media"></div>
+            <div id="chatBox" class="chat-box"></div>
+
+            <div class="chat-input-row">
+                <input type="text" id="messageInput" placeholder="Type your message here">
+                <button type="button" id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/chat.js?v=1"></script>
+</body>
+</html>
