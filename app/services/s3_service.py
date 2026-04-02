@@ -32,3 +32,4 @@ def log_json_to_s3(payload: Dict[str, Any], prefix: str = "fastapi-logs") -> Opt
 def fetch_pdf_bytes(bucket: str, key: str) -> bytes:
     response = s3_client.get_object(Bucket=bucket, Key=key)
     return response["Body"].read()
+    
