@@ -5,7 +5,7 @@ from pydantic import Field
 
 class Settings(BaseSettings):
     app_name: str = "PragatiDidi FastAPI"
-    aws_region: str = "ap-south-1"
+    AWS_REGION=ap-south-1
     learner_table: str = "learner_details"
     bucket_name: str = "pragatididi-2025"
 
