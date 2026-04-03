@@ -31,16 +31,26 @@ THANK_YOU_MAX = 6  # thank_you_1.png to thank_you_6.png
 
 def get_thank_you_image_url(bucket_name: str, region: str, correct_count: int):
     """
-    Returns S3 URL for thank_you_N.png based on cumulative correct answers.
-    N increments with each correct answer, capped at THANK_YOU_MAX.
+    Returns a presigned S3 URL for Thank_you_N.png (capital T) based on
+    cumulative correct answers. N is capped at THANK_YOU_MAX.
     Returns None if correct_count is 0.
     """
     if correct_count <= 0:
         return None
     n = min(correct_count, THANK_YOU_MAX)
     key = f"{THANK_YOU_FOLDER}/Thank_you_{n}.png"
-    base_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
-    return f"{base_url}/{key}"
+    try:
+        import boto3
+        s3 = boto3.client("s3", region_name=region)
+        url = s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": key},
+            ExpiresIn=3600
+        )
+        return url
+    except Exception as e:
+        print(f"Error generating presigned URL for thank_you image: {e}")
+        return None
 
 
 def get_db_connection():
