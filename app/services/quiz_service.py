@@ -26,19 +26,19 @@ ATTEMPT_SEQUENCE_START = 1001
 
 # ✅ Thank you image config (sent after each correct answer)
 THANK_YOU_FOLDER = "Neev_2025/Thanks"
-THANK_YOU_MAX = 6  # thank_you_1.jpeg to thank_you_6.jpeg
+THANK_YOU_MAX = 6  # thank_you_1.png to thank_you_6.png
 
 
 def get_thank_you_image_url(bucket_name: str, region: str, correct_count: int):
     """
-    Returns S3 URL for thank_you_N.jpeg based on cumulative correct answers.
+    Returns S3 URL for thank_you_N.png based on cumulative correct answers.
     N increments with each correct answer, capped at THANK_YOU_MAX.
     Returns None if correct_count is 0.
     """
     if correct_count <= 0:
         return None
     n = min(correct_count, THANK_YOU_MAX)
-    key = f"{THANK_YOU_FOLDER}/thank_you_{n}.jpeg"
+    key = f"{THANK_YOU_FOLDER}/thank_you_{n}.png"
     base_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
     return f"{base_url}/{key}"
 
