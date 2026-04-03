@@ -9,7 +9,7 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# ---- IST timezone ----
+# ===================== TIMEZONE =====================
 try:
     from zoneinfo import ZoneInfo
     IST_TZ = ZoneInfo("Asia/Kolkata")
@@ -20,10 +20,22 @@ except Exception:
 
 USAGE_TABLE_NAME = os.getenv("USAGE_TABLE_NAME", "_2025_learner_usages_status")
 
+# ✅ S3 CONFIG (DIRECT URL)
+BUCKET_NAME = settings.bucket_name
+REGION = settings.aws_region
+
+VIDEO_KEY = "image/intro_video.mp4"           # ✅ fixed
+IMAGE_FIRST = "image/wel_1.jpeg"
+IMAGE_RETURN = "image/wel_2.jpeg"
+
+BASE_S3_URL = f"https://{BUCKET_NAME}.s3.{REGION}.amazonaws.com"
+
 IMAGE_BOX_WIDTH = 100
 IMAGE_BOX_HEIGHT = 150
 
 USAGE_TS_FMT = "%d-%m-%Y %H:%M:%S"
+
+# ===================== MESSAGES =====================
 
 FIRST_TIME_MSG = (
     "नमस्ते {first_name}!👋\n"
@@ -54,15 +66,11 @@ def extract_first_name(full_name: str) -> str:
     return full_name.strip().split()[0]
 
 
-# ✅ NO BASE_URL → direct relative path
-def get_static_url(path: str) -> str:
-    return f"/static/{path}"
+def get_s3_url(key: str) -> str:
+    return f"{BASE_S3_URL}/{key}"
 
 
 def parse_usage_ts(ts_val: str) -> Optional[datetime]:
-    if not ts_val:
-        return None
-
     try:
         return datetime.strptime(ts_val, USAGE_TS_FMT)
     except:
@@ -96,7 +104,7 @@ def log_usage(learner_id: str, camp_id: str, mobile: str):
 
 # ===================== VISITS =====================
 
-def get_visits_last_subject_chapter(learner_id: str):
+def get_visits_last_subject_chapter(learner_id: str) -> Tuple[int, Optional[str], Optional[str]]:
     try:
         query = f"""
             SELECT timestamps, chapter, subject
@@ -149,16 +157,18 @@ def build_welcome_payload(
      .replace("{last_subject}", last_subject or "") \
      .replace("{last_chapter}", last_chapter or "")
 
-    # ✅ STATIC FILES (no base_url)
-    image_path = "media/wel_1.jpeg" if is_first_time else "media/wel_2.jpeg"
-    video_path = "media/intro_video.mp4"
+    # ✅ S3 URLs
+    image_key = IMAGE_FIRST if is_first_time else IMAGE_RETURN
+
+    image_url = get_s3_url(image_key)
+    video_url = get_s3_url(VIDEO_KEY)
 
     return {
         "learner_id": learner_id,
         "visits": visits,
         "message": message,
-        "image_url": get_static_url(image_path),
-        "video_url": get_static_url(video_path),
+        "image_url": image_url,
+        "video_url": video_url,
         "image_box": {
             "width": IMAGE_BOX_WIDTH,
             "height": IMAGE_BOX_HEIGHT
