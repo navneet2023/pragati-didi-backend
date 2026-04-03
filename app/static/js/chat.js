@@ -217,7 +217,7 @@ function renderWelcomeMedia(data) {
         mediaDiv.appendChild(img);
     }
 
-    if (data.video_link) {
+    if (data.video_url) {
         const wrapper = document.createElement("div");
         wrapper.className = "content-block";
         wrapper.style.marginBottom = "12px";
@@ -227,15 +227,15 @@ function renderWelcomeMedia(data) {
         label.innerText = "🎬 Intro Video";
         wrapper.appendChild(label);
 
-        if (isYouTubeUrl(data.video_link)) {
-            wrapper.innerHTML += registerYouTubePlayer(data.video_link, "intro_video");
+        if (isYouTubeUrl(data.video_url)) {
+            wrapper.innerHTML += registerYouTubePlayer(data.video_url, "intro_video");
         } else {
             const video = document.createElement("video");
             video.controls = true;
             video.className = "chat-video";
 
             const source = document.createElement("source");
-            source.src = data.video_link;
+            source.src = data.video_url;
             source.type = "video/mp4";
 
             video.appendChild(source);
@@ -584,6 +584,21 @@ async function submitQuizAnswer(selectedOption) {
             if (data.feedback.is_correct) {
                 currentQuizScore += 1;
                 appendMessage("✅ सही जवाब!", "bot-message");
+
+                // ✅ Show thank you image if available
+                if (data.feedback.thank_you_image_url) {
+                    const thankYouHtml = `
+                        <div style="text-align:center; margin:8px 0;">
+                            <img
+                                src="${data.feedback.thank_you_image_url}"
+                                alt="Thank you"
+                                style="max-width:260px; width:100%; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.12);"
+                                onerror="this.style.display='none'"
+                            />
+                        </div>
+                    `;
+                    appendHtmlMessage(thankYouHtml, "bot-message");
+                }
             } else {
                 appendMessage(`❌ सही जवाब: ${data.feedback.right_answer}`, "bot-message");
             }
