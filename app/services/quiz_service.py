@@ -38,7 +38,7 @@ def get_thank_you_image_url(bucket_name: str, region: str, correct_count: int):
     if correct_count <= 0:
         return None
     n = min(correct_count, THANK_YOU_MAX)
-    key = f"{THANK_YOU_FOLDER}/thank_you_{n}.png"
+    key = f"{THANK_YOU_FOLDER}/Thank_you_{n}.png"
     base_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
     return f"{base_url}/{key}"
 
