@@ -24,6 +24,24 @@ RESPONSES_TABLE = "_2025_prayaas_quiz_responses"
 USAGE_TABLE_NAME = "_2025_learner_usages_status"
 ATTEMPT_SEQUENCE_START = 1001
 
+# ✅ Thank you image config (sent after each correct answer)
+THANK_YOU_FOLDER = "Neev_2025/Thanks"
+THANK_YOU_MAX = 6  # thank_you_1.jpeg to thank_you_6.jpeg
+
+
+def get_thank_you_image_url(bucket_name: str, region: str, correct_count: int):
+    """
+    Returns S3 URL for thank_you_N.jpeg based on cumulative correct answers.
+    N increments with each correct answer, capped at THANK_YOU_MAX.
+    Returns None if correct_count is 0.
+    """
+    if correct_count <= 0:
+        return None
+    n = min(correct_count, THANK_YOU_MAX)
+    key = f"{THANK_YOU_FOLDER}/thank_you_{n}.jpeg"
+    base_url = f"https://{bucket_name}.s3.{region}.amazonaws.com"
+    return f"{base_url}/{key}"
+
 
 def get_db_connection():
     return psycopg2.connect(
@@ -260,6 +278,28 @@ def get_attempt_score_summary(learner_id: str, attempt_id: str) -> Dict[str, Any
     }
 
 
+def get_correct_count(learner_id: str, attempt_id: str) -> int:
+    """Return total correct answers saved so far for this attempt."""
+    query = f"""
+        SELECT score
+        FROM "{RESPONSES_TABLE}"
+        WHERE learner_id = %s
+          AND attempt_question_key LIKE %s
+    """
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(query, (learner_id, f"{attempt_id}#%"))
+            items = cur.fetchall()
+
+    count = 0
+    for item in items:
+        try:
+            count += int(float(item.get("score", 0)))
+        except Exception:
+            pass
+    return count
+
+
 def fetch_or_submit_quiz(payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
         state = payload.get("state")
@@ -357,11 +397,20 @@ def fetch_or_submit_quiz(payload: Dict[str, Any]) -> Dict[str, Any]:
                 }
 
             answered_qids.add(qid)
+
+            # ✅ Count correct answers so far & pick thank_you image
+            correct_count = get_correct_count(learner_id, attempt_id)
+            thank_you_image_url = (
+                get_thank_you_image_url(settings.bucket_name, settings.aws_region, correct_count)
+                if is_correct else None
+            )
+
             feedback = {
                 "selected_option": selected_option,
                 "right_answer": q_cur["right_answer"],
                 "is_correct": is_correct,
-                "question_id": qid
+                "question_id": qid,
+                "thank_you_image_url": thank_you_image_url,
             }
 
             next_q = next_unanswered(slice_qs, answered_qids)

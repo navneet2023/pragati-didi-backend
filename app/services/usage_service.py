@@ -24,7 +24,6 @@ USAGE_TABLE_NAME = os.getenv("USAGE_TABLE_NAME", "_2025_learner_usages_status")
 BUCKET_NAME = settings.bucket_name
 REGION = settings.aws_region
 
-VIDEO_KEY = "image/intro_video.MP4"           # ✅ fixed
 IMAGE_FIRST = "image/wel_1.jpeg"
 IMAGE_RETURN = "image/wel_2.jpeg"
 
@@ -32,6 +31,11 @@ BASE_S3_URL = f"https://{BUCKET_NAME}.s3.{REGION}.amazonaws.com"
 
 IMAGE_BOX_WIDTH = 100
 IMAGE_BOX_HEIGHT = 150
+
+# ✅ YouTube video links
+# First-time users get Navigation video; returning users get Intro video
+YOUTUBE_NAVIGATION_VIDEO = "https://www.youtube.com/shorts/_n5iGuWrPCw"
+YOUTUBE_INTRO_VIDEO = "https://www.youtube.com/shorts/tDu9bAujnF8"
 
 USAGE_TS_FMT = "%d-%m-%Y %H:%M:%S"
 
@@ -157,15 +161,17 @@ def build_welcome_payload(
      .replace("{last_subject}", last_subject or "") \
      .replace("{last_chapter}", last_chapter or "")
 
-    # ✅ S3 URLs
+    # ✅ Image: wel_1 for first-time, wel_2 for returning
     image_key = IMAGE_FIRST if is_first_time else IMAGE_RETURN
-
     image_url = get_s3_url(image_key)
-    video_url = get_s3_url(VIDEO_KEY)
+
+    # ✅ Video: Navigation video for first-time only; returning users get no video
+    video_url = YOUTUBE_NAVIGATION_VIDEO if is_first_time else None
 
     return {
         "learner_id": learner_id,
         "visits": visits,
+        "is_first_time": is_first_time,
         "message": message,
         "image_url": image_url,
         "video_url": video_url,
