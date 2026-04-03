@@ -24,7 +24,7 @@ USAGE_TABLE_NAME = os.getenv("USAGE_TABLE_NAME", "_2025_learner_usages_status")
 BUCKET_NAME = settings.bucket_name
 REGION = settings.aws_region
 
-VIDEO_KEY = "image/intro_video.mp4"           # ✅ fixed
+VIDEO_KEY = "image/intro_video.MP4"           # ✅ fixed
 IMAGE_FIRST = "image/wel_1.jpeg"
 IMAGE_RETURN = "image/wel_2.jpeg"
 
