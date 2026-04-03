@@ -2,6 +2,7 @@ import os
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime, timezone, timedelta
 
+import boto3
 import psycopg2
 import psycopg2.extras
 
@@ -70,8 +71,18 @@ def extract_first_name(full_name: str) -> str:
     return full_name.strip().split()[0]
 
 
-def get_s3_url(key: str) -> str:
-    return f"{BASE_S3_URL}/{key}"
+def get_s3_url(key: str, expires_in: int = 3600) -> str:
+    """Generate a presigned S3 URL so private bucket images are accessible."""
+    try:
+        s3 = boto3.client("s3", region_name=REGION)
+        return s3.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": key},
+            ExpiresIn=expires_in
+        )
+    except Exception as e:
+        print(f"Error generating presigned URL for {key}: {e}")
+        return f"{BASE_S3_URL}/{key}"
 
 
 def parse_usage_ts(ts_val: str) -> Optional[datetime]:
